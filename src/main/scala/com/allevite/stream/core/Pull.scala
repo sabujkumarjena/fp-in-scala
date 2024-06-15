@@ -15,7 +15,7 @@ enum Pull[+O, +R]:
                          ) extends Pull[O, R]
   def step: Either[R, (O, Pull[O, R])] = this match
     case  Result(r) => Left(r)
-    case Output(o) => Right((o, Pull.done))
+    case Output(o) => Right((o, Pull.done)) //Right((o, Result(())))
     case FlatMap(source, f) =>
       source match
         case FlatMap(s2, g) =>
@@ -50,9 +50,30 @@ enum Pull[+O, +R]:
   def map[R2](f: R => R2): Pull[O, R2] =
     flatMap( r => Result(f(r)))
 
+  def repeat: Pull[O, R] =
+    this >> repeat
+
+
 object Pull:
   val done: Pull[Nothing, Unit] = Result(())
   //Creating Pulls
+  def fromList[O](os: List[O]): Pull[O,Unit] =
+    os match
+      case Nil => done
+      case hd :: tl => Output(hd) >> fromList(tl)
+
+  def fromLazyList[O](os: LazyList[O]): Pull[O, Unit] =
+    os match
+      case LazyList() => done
+      case hd #:: tl => Output(hd) >> fromLazyList(tl)
+
+  def continually[A](a: A): Pull[A, Nothing]=
+    Output(a) >> continually(a)
+    
+  extension [O](self: Pull[O, Unit])
+    def toStream: Stream[O] = self
+    
+
 
 
 
@@ -60,4 +81,5 @@ object Pull:
 @main def MAIN(): Unit =
   println("sabuj")
   val p = Pull.Output(1) >> Pull.Output("skj")
+  println(p.step)
   println(p.toList)
